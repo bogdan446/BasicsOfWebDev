@@ -87,6 +87,51 @@
             opacity: 1; 
             transform: translateY(0); 
         }
+
+        /* Стилі для прихованого поля */
+        .extra-field {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out, opacity 0.3s ease-out, margin-bottom 0.4s ease-out;
+            margin-bottom: 0;
+        }
+
+        /* Клас, який ми будемо додавати через JS */
+        .extra-field.show {
+            max-height: 100px; /* Достатньо для поля з лейблом */
+            opacity: 1;
+            margin-bottom: 15px;
+        }
+
+
+        /* Універсальні стилі для всіх полів вводу (виправляє ширину) */
+        input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            box-sizing: border-box; /* Найголовніше: тепер padding не збільшує ширину 100% */
+            margin-top: 5px;
+            font-family: inherit;
+        }
+
+        /* Красива рамка при кліку (фокусі) на поле */
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border: 1px solid var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2);
+        }
+
+        /* Оновлюємо висоту для анімації, щоб нічого не обрізалось */
+        .extra-field.show {
+            max-height: 150px; /* Збільшили висоту */
+            opacity: 1;
+            margin-bottom: 15px;
+            padding-bottom: 5px; /* Додали відступ, щоб тінь при фокусі не обрізалась */
+        }
     </style>
 </head>
 <body>
@@ -113,6 +158,34 @@
             <li>Тестування та фінальна збірка пристрою.</li>
         </ol>
 
+	<!-- Блок з формою -->
+        <h3>Заявка на відновлення:</h3>
+        <!-- Форма з базовою HTML5 валідацією (required) -->
+        <form id="repair-form" class="fade-in">
+            <div style="margin-bottom: 15px;">
+                <label for="userName">Ваше ім'я:</label>
+                <input type="text" id="userName" name="userName" required>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label for="deviceType">Тип пристрою:</label>
+                <select id="deviceType" name="deviceType" required>
+                    <option value="">-- Оберіть пристрій --</option>
+                    <option value="controller">Ігровий контролер</option>
+                    <option value="laptop">Ноутбук</option>
+                    <option value="other">Інше</option>
+                </select>
+            </div>
+
+            <div id="other-device-container" class="extra-field">
+                <label for="otherDevice">Уточніть тип пристрою:</label>
+                <input type="text" id="otherDevice" name="otherDevice">
+            </div>
+
+            <button type="submit" class="theme-btn" style="float: none; width: 100%; margin-top: 10px;">Відправити заявку</button>
+            <p id="form-result" style="color: var(--accent-color); font-weight: bold; margin-top: 10px; display: none;"></p>
+        </form>
+
         <p>Долучайтесь до нашої ініціативи! Зробимо світ чистішим разом.</p>
 
         <footer>
@@ -124,7 +197,7 @@
     <script>
         // --- 1. Анімація появи елементів (Fade-in) ---
         document.addEventListener("DOMContentLoaded", () => {
-            const elements = document.querySelectorAll('h1, h2, h3, p, ul, ol');
+            const elements = document.querySelectorAll('h1, h2, h3, p, ul, ol, form');
             elements.forEach(el => el.classList.add('fade-in'));
 
             setTimeout(() => {
@@ -148,6 +221,59 @@
             } else {
                 document.documentElement.setAttribute('data-theme', 'dark');
                 themeBtn.textContent = '☀️ Світла тема';
+            }
+        });
+
+	// --- 3. Відправка форми на сервер (REST API) ---
+        const form = document.getElementById('repair-form');
+        const resultText = document.getElementById('form-result');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Зупиняємо стандартне перезавантаження сторінки
+
+            // Збираємо дані
+            const formData = {
+                name: document.getElementById('userName').value,
+                device: document.getElementById('deviceType').value
+            };
+
+            try {
+                // Відправляємо POST запит на наш майбутній сервер
+                const response = await fetch('/api/submit-repair', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                // Отримуємо відповідь від сервера (отримання результату на клієнті)
+                const result = await response.json();
+                
+                if(response.ok) {
+                    resultText.textContent = `Успіх! Сервер відповів: ${result.message}`;
+                    resultText.style.display = 'block';
+                    form.reset(); // Очищаємо форму
+                }
+            } catch (error) {
+                resultText.textContent = "Помилка з'єднання з сервером.";
+                resultText.style.color = "red";
+                resultText.style.display = 'block';
+            }
+        });
+
+        // Логіка появи поля "Інше"
+        const deviceSelect = document.getElementById('deviceType');
+        const otherContainer = document.getElementById('other-device-container');
+        const otherInput = document.getElementById('otherDevice');
+
+        deviceSelect.addEventListener('change', function () {
+            if (this.value === 'other') {
+                otherContainer.classList.add('show');
+                otherInput.setAttribute('required', ''); // Робимо поле обов'язковим
+            } else {
+                otherContainer.classList.remove('show');
+                otherInput.removeAttribute('required'); // Знімаємо обов'язковість
             }
         });
     </script>
